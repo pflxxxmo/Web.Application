@@ -4,8 +4,15 @@ package Web.Application.Application.сontroller;
 
 import Web.Application.Application.domain.Orderer;
 import Web.Application.Application.repo.OrdererRepo;
+import io.swagger.annotations.Api;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -14,8 +21,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
+
 @RestController
 @RequestMapping("orderer")
+
+@EnableCaching
 public class OrdererController {
     private final OrdererRepo ordererRepo;
 
@@ -34,6 +44,7 @@ public class OrdererController {
     }
 
     @PostMapping
+    @Cacheable(cacheNames = "name")
     public Orderer create(@RequestBody Orderer orderer) {
         orderer.setCreationTime(LocalDateTime.now());
         return ordererRepo.save(orderer);
@@ -46,7 +57,22 @@ public class OrdererController {
         return ordererRepo.save(ordererFromDB);
     }
     @DeleteMapping("{id}")
-    public void delete(@PathVariable("id") Orderer orderer){ ordererRepo.delete(orderer);}
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = RuntimeException.class, propagation = Propagation.REQUIRED)
+    public void delete(@PathVariable("id") Orderer orderer){
+        Logger log = null;
+        try {
+           ordererRepo.delete(orderer);
+           doExpensiveWork();
+       }catch(EmptyResultDataAccessException | InterruptedException e)
+       {
+            e.getMessage();
+       }
+    }
+
+    private void doExpensiveWork() throws InterruptedException{
+        Thread.sleep(5000);
+        throw new RuntimeException();
+    }
 
 
 //    @Scheduled(fixedRate = 6000)
